@@ -270,35 +270,6 @@ Creates the engine-wise split, trains Random Forest, evaluates it, saves the mod
 
 Loads the saved model and provides an interactive telemetry/RUL dashboard.
 
-## 15. Technical interview preparation
-
-Every team member should be able to explain these questions in their own words:
-
-1. What is supervised learning?
-2. Why is this regression rather than classification?
-3. What is a decision tree?
-4. What is Random Forest?
-5. Why does combining many trees help?
-6. What is bootstrapping?
-7. What is a split/feature threshold in a tree?
-8. What does `max_depth` control?
-9. What does `n_estimators` control?
-10. Why do we set `random_state`?
-11. Why don't we normalize features for Random Forest?
-12. What is data leakage?
-13. Why do we split by engine instead of random rows?
-14. How is training RUL calculated?
-15. Why cap RUL at 125 cycles?
-16. Why is MAE different from RMSE?
-17. What does R² mean?
-18. Why is the NASA score asymmetric?
-19. What is feature importance?
-20. What would happen if we trained with only one tree?
-
-## 16. Responsible-use note
-
-This project is an educational demonstration based on simulated data. It must not be used to make real aircraft maintenance or safety decisions.
-
 ## References
 
 - NASA Open Data, **CMAPSS Jet Engine Simulated Data**: https://data.nasa.gov/dataset/cmapss-jet-engine-simulated-data
