@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.DS_Store
+
+# NASA raw data is downloaded locally, not committed.
+data/raw/*
+!data/raw/.gitkeep
+
+# Generated model/report artifacts.
+artifacts/*
+!artifacts/.gitkeep
+reports/*
+!reports/.gitkeep
