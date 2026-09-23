@@ -1,21 +1,25 @@
 # ✈️ AeroSense
 
-## NASA C-MAPSS Turbofan Remaining Useful Life Prediction using Random Forest
+## NASA C-MAPSS Turbofan Remaining Useful Life Prediction Using Random Forest
 
-> **AeroSense predicts how many operating cycles a simulated turbofan engine may have remaining before failure using sensor telemetry and a Random Forest regression model.**
+> **AeroSense uses simulated turbofan-engine sensor telemetry and a Random Forest regression model to estimate how many operating cycles remain before an engine reaches its simulated failure point.**
 
 AeroSense is an end-to-end **predictive-maintenance machine-learning project** built using the **NASA C-MAPSS FD001 turbofan engine dataset**.
 
-The project demonstrates the complete workflow of a practical machine-learning system:
+The project demonstrates the complete journey from raw engine telemetry to an interactive Remaining Useful Life (RUL) prediction:
 
 ```text
+NASA C-MAPSS FD001
+        ↓
 Raw Engine Telemetry
         ↓
 Data Preparation
         ↓
 RUL Target Construction
         ↓
-Leakage-Aware Train/Validation Split
+Engine-wise Validation Split
+        ↓
+Feature Preparation
         ↓
 Random Forest Regression
         ↓
@@ -26,7 +30,7 @@ Model + Metadata + Reports
 Interactive Streamlit Dashboard
 ```
 
-The goal of AeroSense is not simply to train a machine-learning model, but to demonstrate **how raw sensor data can be transformed into a meaningful Remaining Useful Life (RUL) prediction and presented through an interactive application**.
+The objective is not simply to train a model, but to demonstrate **how sensor data can be transformed into a meaningful machine-learning prediction and then exposed through an interactive application**.
 
 ---
 
@@ -35,11 +39,11 @@ The goal of AeroSense is not simply to train a machine-learning model, but to de
 1. [Project Overview](#1-project-overview)
 2. [The Problem](#2-the-problem)
 3. [What is Remaining Useful Life?](#3-what-is-remaining-useful-life)
-4. [Why RUL Prediction is a Regression Problem](#4-why-rul-prediction-is-a-regression-problem)
+4. [Why RUL Prediction is Regression](#4-why-rul-prediction-is-regression)
 5. [Dataset](#5-dataset)
-6. [Why NASA C-MAPSS FD001?](#6-why-nasa-c-mapps-fd001)
-7. [What the Dataset Looks Like](#7-what-the-dataset-looks-like)
-8. [How AeroSense Creates the RUL Target](#8-how-aerosense-creates-the-rul-target)
+6. [Why FD001?](#6-why-fd001)
+7. [Understanding the Dataset](#7-understanding-the-dataset)
+8. [Creating the RUL Target](#8-creating-the-rul-target)
 9. [Complete Machine-Learning Pipeline](#9-complete-machine-learning-pipeline)
 10. [Feature Preparation](#10-feature-preparation)
 11. [Preventing Data Leakage](#11-preventing-data-leakage)
@@ -50,7 +54,7 @@ The goal of AeroSense is not simply to train a machine-learning model, but to de
 16. [Model Evaluation](#16-model-evaluation)
 17. [Current Results](#17-current-results)
 18. [Feature Importance](#18-feature-importance)
-19. [Streamlit Dashboard](#19-streamlit-dashboard)
+19. [Interactive Streamlit Dashboard](#19-interactive-streamlit-dashboard)
 20. [Dashboard Status Categories](#20-dashboard-status-categories)
 21. [Project Architecture](#21-project-architecture)
 22. [Repository Structure](#22-repository-structure)
@@ -62,7 +66,7 @@ The goal of AeroSense is not simply to train a machine-learning model, but to de
 28. [Run the Tests](#28-run-the-tests)
 29. [Generated Files](#29-generated-files)
 30. [Reproducibility](#30-reproducibility)
-31. [Technical Interview Guide](#31-technical-interview-guide)
+31. [Project Screenshots](#31-project-screenshots)
 32. [Limitations](#32-limitations)
 33. [Future Improvements](#33-future-improvements)
 34. [References](#34-references)
@@ -72,78 +76,109 @@ The goal of AeroSense is not simply to train a machine-learning model, but to de
 
 # 1. Project Overview
 
-## 🎯 Project Goal
+## 🎯 What does AeroSense do?
 
-The objective of AeroSense is:
+AeroSense estimates the **Remaining Useful Life (RUL)** of a simulated turbofan engine.
 
-> **Given the current telemetry of a turbofan engine, estimate how many operating cycles remain before the engine reaches the end of its simulated useful life.**
-
-This is a classic **predictive maintenance** problem.
-
-Instead of waiting until a machine fails:
-
-```text
-Failure happens
-      ↓
-Maintenance
-```
-
-predictive maintenance tries to estimate degradation in advance:
+Given the engine's current telemetry:
 
 ```text
 Sensor measurements
-        ↓
-Machine-learning model
-        ↓
-Estimated remaining life
-        ↓
-Maintenance planning
++
+Operating conditions
++
+Operating cycle
 ```
 
-AeroSense demonstrates this concept using simulated turbofan-engine telemetry.
+the model predicts:
 
----
-
-# 2. The Problem
-
-Imagine an aircraft engine being monitored continuously.
-
-During operation, sensors measure quantities such as:
-
-* temperatures;
-* pressures;
-* fan speed;
-* core speed;
-* fuel-related quantities;
-* coolant flow;
-* other engine parameters.
-
-As an engine gradually degrades, some of these measurements can change.
-
-The challenge is:
-
-> **Can we learn the relationship between those measurements and how close the engine is to failure?**
-
-AeroSense attempts to answer that question with machine learning.
-
----
-
-# 3. What is Remaining Useful Life?
-
-**Remaining Useful Life**, usually abbreviated as **RUL**, means:
-
-> The estimated amount of operating life remaining before an engine reaches its failure point.
-
-In C-MAPSS, engine operation is measured in **cycles**.
+```text
+Estimated Remaining Useful Life
+```
 
 For example:
 
 ```text
 Current cycle = 140
-Failure cycle = 200
+Predicted RUL  = 60 cycles
 ```
 
-Therefore:
+The prediction means the model estimates that approximately 60 operating cycles remain before the simulated failure point.
+
+---
+
+## Why is this useful?
+
+A machine does not necessarily fail without warning.
+
+Its sensor measurements may change as degradation progresses.
+
+Predictive-maintenance systems attempt to use these changes to estimate remaining life **before failure occurs**.
+
+The general idea is:
+
+```text
+Monitor
+   ↓
+Detect patterns
+   ↓
+Estimate degradation
+   ↓
+Predict remaining life
+   ↓
+Support maintenance planning
+```
+
+AeroSense demonstrates this workflow using simulated turbofan-engine data.
+
+---
+
+# 2. The Problem
+
+Imagine an engine operating over hundreds of cycles.
+
+During each cycle, multiple sensors record measurements such as temperatures, pressures, speeds, and other operating parameters.
+
+An engine's trajectory may look conceptually like:
+
+```text
+Healthy
+  │
+  ▼
+Normal operation
+  │
+  ▼
+Gradual degradation
+  │
+  ▼
+Increasing degradation
+  │
+  ▼
+Failure
+```
+
+The machine-learning problem is:
+
+> **Can the relationship between engine telemetry and degradation be learned well enough to estimate how many cycles remain before failure?**
+
+AeroSense formulates this as a **supervised regression problem**.
+
+---
+
+# 3. What is Remaining Useful Life?
+
+**Remaining Useful Life**, or **RUL**, is the amount of operating life remaining before an asset reaches its defined failure point.
+
+For the C-MAPSS dataset, engine operation is measured in **cycles**.
+
+Suppose:
+
+```text
+Failure cycle = 200
+Current cycle = 140
+```
+
+Then:
 
 ```text
 RUL = Failure cycle - Current cycle
@@ -153,25 +188,32 @@ RUL = 200 - 140
 RUL = 60 cycles
 ```
 
-So the engine has:
+So at cycle 140, the engine has:
 
 ```text
-60 operating cycles remaining
+60 cycles
 ```
 
-before the simulated failure point.
+of simulated life remaining.
+
+At the failure cycle:
+
+```text
+Current cycle = 200
+Failure cycle = 200
+
+RUL = 0
+```
 
 ---
 
-# 4. Why RUL Prediction is a Regression Problem
+# 4. Why RUL Prediction is Regression
 
-There are two broad kinds of machine-learning prediction:
+Machine-learning prediction can broadly be divided into tasks such as classification and regression.
 
 ### Classification
 
-Classification predicts a category.
-
-Example:
+Predicts a category:
 
 ```text
 Healthy
@@ -181,29 +223,31 @@ Critical
 
 ### Regression
 
-Regression predicts a numerical value.
-
-Example:
+Predicts a numerical value:
 
 ```text
-Predicted RUL = 43.7 cycles
+43.7 cycles
 ```
 
-AeroSense predicts a numerical quantity:
+AeroSense predicts:
 
 ```text
 Remaining Useful Life
 ```
 
+which is numerical.
+
 Therefore:
 
 > **AeroSense is a regression problem.**
 
-The Random Forest model used in this project is specifically:
+The model used is:
 
 ```text
 RandomForestRegressor
 ```
+
+from scikit-learn.
 
 ---
 
@@ -213,7 +257,11 @@ AeroSense uses the:
 
 ## NASA C-MAPSS Jet Engine Simulated Data
 
-Official NASA dataset page:
+C-MAPSS stands for:
+
+**Commercial Modular Aero-Propulsion System Simulation**
+
+Official NASA dataset:
 
 https://data.nasa.gov/dataset/cmapss-jet-engine-simulated-data
 
@@ -223,7 +271,7 @@ The project currently uses:
 FD001
 ```
 
-C-MAPSS contains several commonly used subsets:
+The commonly used C-MAPSS subsets are:
 
 ```text
 FD001
@@ -232,25 +280,37 @@ FD003
 FD004
 ```
 
-AeroSense currently focuses on **FD001**.
+AeroSense currently focuses on FD001.
 
 ---
 
-# 6. Why NASA C-MAPSS FD001?
+# 6. Why FD001?
 
-FD001 is a useful starting point for understanding the complete RUL-prediction workflow because it provides:
+FD001 provides a relatively controlled environment for demonstrating the complete RUL-prediction pipeline.
+
+It contains:
 
 * multiple simulated engine trajectories;
 * complete run-to-failure training trajectories;
-* a single operating condition;
-* a single degradation/fault mode;
+* one operating condition;
+* one degradation mode;
 * multiple sensor measurements over time.
 
-The simplified structure makes it easier to focus on the machine-learning concepts before introducing additional operating-condition complexity.
+This makes FD001 a useful starting point for understanding:
 
-The current project deliberately keeps the implementation focused on FD001.
+```text
+Telemetry
+   ↓
+RUL construction
+   ↓
+Feature preparation
+   ↓
+Regression
+   ↓
+Evaluation
+```
 
-Future versions could extend the same pipeline to:
+The same overall architecture can later be extended to:
 
 ```text
 FD002
@@ -258,20 +318,22 @@ FD003
 FD004
 ```
 
+which introduce additional operating-condition and degradation complexity.
+
 ---
 
-# 7. What the Dataset Looks Like
+# 7. Understanding the Dataset
 
 FD001 contains:
 
-```text
-100 training engines
-100 test engines
-1 operating condition
-1 degradation/fault mode
-3 operational settings
-21 sensor measurements
-```
+| Property             | Value |
+| -------------------- | ----: |
+| Training engines     |   100 |
+| Test engines         |   100 |
+| Operating conditions |     1 |
+| Degradation modes    |     1 |
+| Operational settings |     3 |
+| Sensors              |    21 |
 
 Each raw observation contains:
 
@@ -279,7 +341,7 @@ Each raw observation contains:
 1 engine identifier
 1 operating cycle
 3 operational settings
-21 sensors
+21 sensor measurements
 ```
 
 Therefore:
@@ -288,168 +350,224 @@ Therefore:
 1 + 1 + 3 + 21 = 26 raw columns
 ```
 
-Conceptually, a row looks like:
+Conceptually, the raw data looks like:
 
 ```text
-Engine  | Cycle | Settings | Sensor 1 | Sensor 2 | ... | Sensor 21
---------------------------------------------------------------------
-1       | 1     | ...      | ...      | ...      | ... | ...
-1       | 2     | ...      | ...      | ...      | ... | ...
-1       | 3     | ...      | ...      | ...      | ... | ...
+Engine | Cycle | Setting 1 | Setting 2 | Setting 3 | Sensor 1 | ... | Sensor 21
+--------------------------------------------------------------------------------
+1      | 1     | ...       | ...       | ...       | ...      | ... | ...
+1      | 2     | ...       | ...       | ...       | ...      | ... | ...
+1      | 3     | ...       | ...       | ...       | ...      | ... | ...
 ...
 ```
 
-The engine is observed over many cycles.
+Each engine therefore produces a **time-ordered trajectory** of sensor observations.
 
 ---
 
-# 8. How AeroSense Creates the RUL Target
+## Dataset Files
 
-The original training dataset contains telemetry, but the model also needs a **target** to learn.
+The FD001 dataset uses three files:
 
-That target is:
+```text
+train_FD001.txt
+test_FD001.txt
+RUL_FD001.txt
+```
+
+### `train_FD001.txt`
+
+Contains complete run-to-failure trajectories.
+
+For each training engine, observations continue until its simulated failure point.
+
+### `test_FD001.txt`
+
+Contains partial trajectories.
+
+The test engines are observed only up to a final observed cycle.
+
+### `RUL_FD001.txt`
+
+Contains the remaining useful life of each test engine **after its final observed cycle**.
+
+This information allows the actual final test RUL to be reconstructed.
+
+---
+
+# 8. Creating the RUL Target
+
+A supervised machine-learning model needs a target value to learn.
+
+For AeroSense, that target is:
 
 ```text
 RUL
 ```
 
-## Training Data
+## Training RUL
 
-For each training engine, AeroSense calculates:
+For every training engine:
 
 ```text
 RUL = Maximum cycle of that engine - Current cycle
 ```
 
-Example:
+Suppose an engine fails at cycle 200:
+
+| Current Cycle | RUL |
+| ------------: | --: |
+|            20 | 180 |
+|            50 | 150 |
+|           100 | 100 |
+|           150 |  50 |
+|           190 |  10 |
+|           200 |   0 |
+
+Therefore:
 
 ```text
-Engine maximum cycle = 200
+At cycle 20:
 
-Current cycle     RUL
--------------    ----
-20               180
-50               150
-100              100
-150               50
-190               10
-200                0
+RUL = 200 - 20
+    = 180
 ```
 
-At the final cycle:
+and:
 
 ```text
-RUL = 0
-```
+At cycle 150:
 
-because the engine has reached the end of its simulated life.
+RUL = 200 - 150
+    = 50
+```
 
 ---
 
 ## RUL Capping
 
-AeroSense caps the training target at:
+AeroSense caps the training RUL at:
 
 ```text
 MAX_RUL = 125
 ```
 
-Therefore:
+The training target is therefore:
 
 ```text
-RUL = 180 → 125
-RUL = 150 → 125
-RUL = 130 → 125
-RUL = 100 → 100
-RUL = 60  → 60
+RUL = min(original_RUL, 125)
+```
+
+Example:
+
+```text
+Original RUL     Training RUL
+-----------      ------------
+180              125
+150              125
+130              125
+100              100
+60                60
+20                20
+0                  0
 ```
 
 This prevents very large early-life RUL values from dominating the regression problem.
 
-The cap is applied only to the training target construction.
+The cap is applied to the **training target construction**.
 
 ---
 
-## Test Data
+## Test RUL Reconstruction
 
-The test engines do not contain complete trajectories.
+The test engines do not have complete trajectories.
 
-Instead, NASA provides:
+Instead, NASA provides the remaining life after each test engine's final observed cycle.
+
+Suppose:
 
 ```text
-test_FD001.txt
-RUL_FD001.txt
+Final observed cycle = 150
+NASA final RUL       = 30
 ```
 
-`RUL_FD001.txt` gives the remaining useful life **after the final observed test cycle** for each test engine.
+Then the implied failure cycle is:
 
-AeroSense reconstructs row-level test RUL using:
+```text
+150 + 30 = 180
+```
+
+For an earlier observation at cycle 100:
+
+```text
+RUL = 180 - 100
+    = 80
+```
+
+AeroSense reconstructs test RUL using:
 
 ```text
 RUL =
-Final observed test cycle
+Final observed cycle
 - Current cycle
 + NASA final RUL
 ```
 
-The final benchmark-style test evaluation then uses:
+For the final benchmark-style evaluation, AeroSense uses:
 
-> **The last observed row of each test engine.**
+> **The latest observed row of each test engine.**
 
-This gives one prediction per test engine, matching the intended final-cycle evaluation setup.
+This produces one final prediction per test engine.
 
 ---
 
 # 9. Complete Machine-Learning Pipeline
 
-The complete AeroSense pipeline is:
+The complete AeroSense workflow is:
 
 ```text
 NASA C-MAPSS FD001
         │
         ▼
-Automatic dataset retrieval
+Automatic Dataset Retrieval
         │
         ▼
-Read raw telemetry
+Read Raw Telemetry
         │
         ▼
-Assign column names
+Create Training RUL
         │
         ▼
-Create training RUL
+Reconstruct Test RUL
         │
         ▼
-Reconstruct test RUL
+Engine-wise Train/Validation Split
         │
         ▼
-Split training engines
+Feature Preparation
         │
         ▼
-Select model features
-        │
-        ▼
-Remove near-zero variance features
+Remove Near-Zero Variance Features
         │
         ▼
 Train Random Forest
         │
-        ├───────────────► Feature Importance
+        ├──────────────► Feature Importance
         │
         ▼
-Validation predictions
+Validation Predictions
         │
         ▼
-Validation metrics
+Validation Metrics
         │
         ▼
-Final-cycle test predictions
+Final-cycle Test Predictions
         │
         ▼
-Test metrics
+Test Metrics
         │
         ▼
-Save model + metadata + reports
+Save Model + Metadata + Reports
         │
         ▼
 Streamlit Dashboard
@@ -463,7 +581,7 @@ In simple terms:
 
 # 10. Feature Preparation
 
-The raw data contains:
+The raw dataset contains:
 
 ```text
 unit_number
@@ -483,11 +601,11 @@ The model does **not** use:
 unit_number
 ```
 
-as a prediction feature.
+as a predictive feature.
 
 Why?
 
-Because `unit_number` is only an identifier:
+Because it is an identifier:
 
 ```text
 Engine 1
@@ -496,7 +614,7 @@ Engine 3
 ...
 ```
 
-It does not represent a physical measurement of the engine.
+It does not represent the physical state of the engine.
 
 The target:
 
@@ -504,7 +622,7 @@ The target:
 RUL
 ```
 
-is also not used as an input because it is the value the model is trying to predict.
+is also excluded from the model inputs because it is the value being predicted.
 
 Therefore:
 
@@ -516,21 +634,18 @@ Excluded:
 Used:
     cycle
     operational settings
-    informative sensor measurements
+    informative sensors
 ```
 
 ---
 
 ## Near-Zero Variance Features
 
-A feature with almost no variation provides little useful information for a model.
+A feature that barely changes provides little information.
 
-For example, imagine:
+For example:
 
 ```text
-Feature A:
-
-10
 10
 10
 10
@@ -538,27 +653,32 @@ Feature A:
 10
 ```
 
-The feature never changes.
+has essentially no variation.
 
-AeroSense calculates feature variance on the training data and removes features whose variance is effectively zero:
+AeroSense calculates feature variance from the training data and removes features whose variance is effectively zero:
 
 ```text
 variance > 1e-12
 ```
 
-This avoids feeding useless constant-like features to the model.
+This prevents constant-like features from being unnecessarily passed to the model.
 
 ---
 
 # 11. Preventing Data Leakage
 
-One of the most important technical decisions in AeroSense is preventing **data leakage**.
+Data leakage is one of the most important concerns in this type of dataset.
 
-## What is data leakage?
+Each engine produces many observations:
 
-Data leakage happens when information from the validation/test set unintentionally influences model training.
+```text
+Engine 1 → many cycles
+Engine 2 → many cycles
+Engine 3 → many cycles
+...
+```
 
-For this dataset, a particularly dangerous mistake would be to randomly split individual rows.
+A naive row-level random split could place observations from the **same engine** in both training and validation.
 
 For example:
 
@@ -575,48 +695,45 @@ Engine 17, cycle 22
 Engine 17, cycle 23
 ```
 
-Now the model has already seen the same engine's trajectory during training.
+The model would already have seen part of the same engine's trajectory.
 
-That can make the validation result look better than it really is.
+That can make validation performance look artificially optimistic.
 
 ---
 
-## AeroSense Solution
+## Engine-wise Split
 
-AeroSense splits the data by:
-
-```text
-ENGINE
-```
-
-rather than by random rows.
-
-The project uses:
+AeroSense uses:
 
 ```text
 GroupShuffleSplit
 ```
 
-with:
+with the engine identifier as the grouping variable.
 
-```text
-20% validation
-random_state = 42
-```
+The split is performed at the **engine level**, not the row level.
 
-Therefore:
+Conceptually:
 
 ```text
 Engine 1 → Training
 Engine 2 → Training
 Engine 3 → Validation
 Engine 4 → Training
+Engine 5 → Validation
 ...
 ```
 
-A complete engine belongs to only one side of the split.
+A complete engine belongs to only one split.
 
-This produces a more meaningful validation experiment for the problem.
+The current configuration uses:
+
+```text
+Validation fraction = 20%
+random_state = 42
+```
+
+This creates a more meaningful evaluation of performance on previously unseen engine trajectories.
 
 ---
 
@@ -628,48 +745,48 @@ AeroSense uses:
 Random Forest Regressor
 ```
 
-Random Forest was selected because it is well suited to the project's numerical/tabular telemetry data while remaining relatively straightforward to understand and explain.
+because it is a practical baseline for numerical/tabular telemetry data.
 
-Useful characteristics include:
+Important characteristics include:
 
-### 1. Non-linear relationships
+### Non-linear relationships
 
-Engine degradation may not behave like a simple straight-line equation.
+Engine degradation does not necessarily follow a simple straight-line relationship.
 
-Random Forest can learn non-linear relationships.
+Random Forest can learn nonlinear relationships.
 
-### 2. Feature interactions
+### Feature interactions
 
-A sensor may not be informative by itself but can become informative when combined with another sensor.
+Multiple sensors can interact in ways that are difficult to represent using a simple linear equation.
 
-Tree-based methods can model these interactions.
+Tree-based models can learn these interactions.
 
-### 3. No feature scaling requirement
+### No feature scaling requirement
 
-Tree-based models do not require inputs to be normalized in the same way as many distance-based or gradient-based algorithms.
+Random Forest does not require the standardization or normalization commonly needed by some other machine-learning algorithms.
 
-### 4. Good interpretability for a student project
+### Suitable for tabular data
 
-Decision trees are easier to explain than many black-box models.
+The C-MAPSS dataset is structured numerical/tabular data, which is a natural setting for tree-based models.
 
-### 5. Feature importance
+### Feature importance
 
-Random Forest provides feature-importance values that can be visualized in the dashboard.
+Random Forest provides feature-importance information that can be visualized.
 
-### 6. Reasonable baseline
+### Interpretable model structure
 
-Random Forest provides a practical baseline before moving toward more advanced models such as gradient boosting or deep-learning sequence models.
+Individual decision trees can be explained using threshold-based rules, making the model easier to inspect than many more complex approaches.
 
 ---
 
 # 13. How Random Forest Works
 
-A single decision tree makes predictions through a sequence of learned rules.
+A **decision tree** predicts by repeatedly splitting data using learned conditions.
 
 Conceptually:
 
 ```text
-Is sensor_3 < threshold?
+Is sensor_7 < 42.5?
           │
       ┌───┴───┐
       │       │
@@ -679,40 +796,40 @@ Is sensor_3 < threshold?
    Branch A  Branch B
 ```
 
-A Random Forest creates many trees.
+A Random Forest combines many decision trees.
 
 For example:
 
 ```text
-Tree 1 → 42 cycles
-Tree 2 → 48 cycles
-Tree 3 → 45 cycles
-Tree 4 → 41 cycles
+Tree 1   → 42 cycles
+Tree 2   → 48 cycles
+Tree 3   → 45 cycles
+Tree 4   → 41 cycles
 ...
 Tree 100 → 46 cycles
 ```
 
-For regression, the forest combines the tree predictions to produce a final prediction.
+The forest combines these predictions to produce the final regression output.
 
 Conceptually:
 
 ```text
-100 decision trees
-        ↓
-Combine predictions
-        ↓
-Final RUL prediction
+                 ┌── Tree 1 ──┐
+                 ├── Tree 2 ──┤
+Input telemetry ├── Tree 3 ──┼──► Combined RUL
+                 ├──   ...  ──┤
+                 └── Tree 100 ┘
 ```
 
-So AeroSense does not depend on a single decision tree.
+This is called **ensemble learning**.
 
-It uses an **ensemble of trees**.
+Instead of relying on one tree, the model combines many trees.
 
 ---
 
 # 14. Random Forest Configuration
 
-The current AeroSense configuration is:
+The current model configuration is:
 
 ```text
 n_estimators      = 100
@@ -722,8 +839,6 @@ random_state      = 42
 n_jobs            = -1
 oob_score         = True
 ```
-
-## Parameter explanation
 
 ### `n_estimators = 100`
 
@@ -735,70 +850,60 @@ The forest contains:
 
 ### `max_depth = 15`
 
-Each tree can grow to a maximum depth of:
+Each tree can grow to a maximum depth of 15.
 
-```text
-15
-```
-
-This limits the complexity of individual trees.
+This limits individual tree complexity.
 
 ### `min_samples_split = 5`
 
-A node must contain at least:
-
-```text
-5 samples
-```
-
-before it can be split.
+A node must contain at least five samples before it can be split.
 
 ### `random_state = 42`
 
-This fixes the random seed and improves reproducibility.
+Fixes the random seed for reproducibility.
 
 ### `n_jobs = -1`
 
-The model can use all available CPU cores for training.
+Allows scikit-learn to use all available CPU cores.
 
 ### `oob_score = True`
 
-Random Forest keeps track of out-of-bag samples during training and computes an OOB estimate internally.
+Enables out-of-bag evaluation within the Random Forest.
 
 ---
 
 # 15. Why Feature Scaling is Not Used
 
-Many machine-learning algorithms benefit from feature scaling.
+Some machine-learning algorithms are sensitive to feature scale.
 
 For example:
 
 ```text
-sensor A: 0.1 → 1.2
-sensor B: 1000 → 5000
+Sensor A: 0.1 → 1.2
+Sensor B: 1000 → 5000
 ```
 
-For distance-based models, these very different numeric ranges can matter.
+Distance-based algorithms can be affected by these different ranges.
 
 Random Forest works differently.
 
-Decision trees primarily make decisions such as:
+Decision trees primarily make threshold-based decisions such as:
 
 ```text
 Is sensor_7 < 42.5?
 ```
 
-The split is based on ordering and thresholds rather than Euclidean distance.
+The model does not calculate distances between samples in the way algorithms such as k-nearest neighbors do.
 
 Therefore, explicit normalization or standardization is **not required** for this Random Forest pipeline.
 
-This keeps the implementation simpler and preserves the original sensor-value meaning.
+The original numerical meaning of the sensor measurements can therefore be preserved.
 
 ---
 
 # 16. Model Evaluation
 
-AeroSense evaluates the model using four metrics:
+AeroSense uses four evaluation metrics:
 
 ```text
 RMSE
@@ -807,27 +912,27 @@ R²
 NASA Asymmetric Score
 ```
 
-Each metric answers a slightly different question.
+Each describes a different aspect of model performance.
 
 ---
 
 ## 16.1 RMSE
 
-### Root Mean Squared Error
+**Root Mean Squared Error**
 
-RMSE penalizes larger errors more strongly.
+RMSE gives greater influence to larger errors.
 
 Conceptually:
 
 ```text
-Prediction error
-        ↓
-Square error
-        ↓
+Prediction errors
+       ↓
+Square each error
+       ↓
 Average
-        ↓
+       ↓
 Square root
-        ↓
+       ↓
 RMSE
 ```
 
@@ -843,9 +948,9 @@ Lower RMSE indicates smaller prediction error.
 
 ## 16.2 MAE
 
-### Mean Absolute Error
+**Mean Absolute Error**
 
-MAE measures the average absolute prediction error.
+MAE measures the average absolute difference between predicted and actual RUL.
 
 Example:
 
@@ -853,42 +958,52 @@ Example:
 Actual RUL    = 50
 Predicted RUL = 43
 
-Error = 7 cycles
+Absolute error = 7 cycles
 ```
 
-MAE is therefore easy to interpret:
+Therefore:
 
-> On average, how many cycles away are the predictions from the true values?
+> **MAE answers approximately how many cycles away the predictions are from the actual values on average.**
 
-Lower MAE is better.
+Lower MAE indicates smaller average error.
 
 ---
 
 ## 16.3 R²
 
-### Coefficient of Determination
+**Coefficient of Determination**
 
-R² measures how well the model explains variation in the target relative to a mean-based baseline.
+R² measures how well the model explains variation in the target compared with a mean-based baseline.
 
-In general:
+Generally:
 
 ```text
-Closer to 1
-    ↓
+R² closer to 1
+       ↓
 Stronger explanatory performance
 ```
 
-An R² value should always be interpreted in the context of the dataset and evaluation procedure.
+R² is **not an accuracy percentage**.
+
+For example:
+
+```text
+R² = 0.819
+```
+
+does not mean:
+
+```text
+81.9% prediction accuracy
+```
 
 ---
 
-## 16.4 NASA / PHM Asymmetric Score
+## 16.4 NASA Asymmetric Score
 
-RUL prediction has an important characteristic:
+RUL prediction errors can have different penalties depending on their direction.
 
-> Under-predicting and over-predicting are not necessarily treated as equally costly.
-
-AeroSense therefore calculates the asymmetric scoring function used in the C-MAPSS / PHM evaluation context.
+AeroSense therefore calculates the asymmetric scoring function commonly associated with C-MAPSS / PHM RUL evaluation.
 
 Let:
 
@@ -896,36 +1011,34 @@ Let:
 d = predicted_RUL - actual_RUL
 ```
 
-Then:
+Then the score contribution is:
 
 ```text
 if d < 0:
 
-    score = exp(-d / 13) - 1
+    exp(-d / 13) - 1
 
 else:
 
-    score = exp(d / 10) - 1
+    exp(d / 10) - 1
 ```
 
-The final score is the sum over all evaluated engines.
+The total score is the sum of the contributions.
 
 Important interpretation:
 
 ```text
-Lower score → better
 Perfect predictions → 0
+Lower score        → better
 ```
 
-The score penalizes the two directions of error differently.
+The two directions of error are penalized differently.
 
 ---
 
 # 17. Current Results
 
-The current AeroSense model was evaluated using the final observed cycle of each FD001 test engine.
-
-### Final-cycle test evaluation
+The current AeroSense Random Forest model produced the following **final-cycle FD001 test results**:
 
 | Metric         |            Result |
 | -------------- | ----------------: |
@@ -934,7 +1047,7 @@ The current AeroSense model was evaluated using the final observed cycle of each
 | **R²**         |         **0.819** |
 | **NASA Score** |       **498.498** |
 
-Validation results from the current run:
+The current engine-wise validation results are:
 
 | Metric                    |            Result |
 | ------------------------- | ----------------: |
@@ -943,35 +1056,33 @@ Validation results from the current run:
 | **Validation R²**         |         **0.853** |
 | **Validation NASA Score** |     **22627.066** |
 
-These values are **reproducible project results for the current configuration and dataset**, not guarantees of performance on real aircraft engines.
+These values correspond to the current implementation, Random Forest configuration, feature-processing pipeline, and FD001 dataset.
+
+They should not be interpreted as guarantees of performance on real aircraft engines.
 
 ---
 
 # 18. Feature Importance
 
-One benefit of Random Forest is that it provides feature-importance information.
+Random Forest provides feature-importance values based on the trained ensemble.
 
-AeroSense calculates importance values for the model features and saves them to:
+AeroSense saves these values to:
 
 ```text
 reports/feature_importance.csv
 ```
 
-The dashboard visualizes the:
+The dashboard visualizes the most important features.
 
-```text
-Top 10 features
-```
+This answers:
 
-This allows us to ask:
+> **Which telemetry features did the trained model rely on most strongly?**
 
-> Which telemetry variables did the trained Random Forest rely on most during learning?
-
-The five most important **sensor features** are also identified and exposed through the interactive dashboard.
+The five most important sensor features are also exposed through the dashboard for interactive exploration.
 
 ---
 
-## Important Interpretation
+## Important distinction
 
 Feature importance does **not** automatically mean:
 
@@ -979,116 +1090,142 @@ Feature importance does **not** automatically mean:
 "This sensor causes engine degradation."
 ```
 
-It means:
+Instead, it means:
 
 ```text
 "The trained model relied more heavily on this feature
-relative to the other features in this model."
+relative to other features during its learned tree splits."
 ```
 
-Correlation, causation, and model importance are different concepts.
+Model importance, correlation, and physical causation are different concepts.
 
 ---
 
-# 19. Streamlit Dashboard
+# 19. Interactive Streamlit Dashboard
 
-AeroSense includes an interactive Streamlit application.
-
-The dashboard lets the user move from:
+AeroSense includes an interactive dashboard built with:
 
 ```text
-Raw telemetry
-      ↓
-Model
-      ↓
-Prediction
+Streamlit
 ```
 
-through a visual interface.
+The dashboard connects the trained model to a visual interface.
 
-The dashboard includes:
-
-### ✈️ Engine Selection
-
-Select one of the test engines by ID.
+```text
+Select Engine
+      ↓
+Load Latest Telemetry
+      ↓
+Generate Baseline Prediction
+      ↓
+Modify Important Sensors
+      ↓
+Generate Adjusted Prediction
+      ↓
+Compare Predictions
+```
 
 ---
 
-### 📡 Latest Telemetry
+## Engine Selection
 
-The dashboard takes the selected engine's:
+The dashboard allows a test engine to be selected by its engine ID.
+
+---
+
+## Latest Telemetry
+
+For the selected engine, the dashboard loads its:
 
 ```text
 latest observed cycle
 ```
 
-as the baseline input.
+This becomes the baseline input to the model.
 
 ---
 
-### 🎛️ Sensor Controls
+## Baseline Prediction
+
+The model predicts RUL using the engine's actual latest telemetry.
+
+This is displayed as the:
+
+```text
+Baseline Prediction
+```
+
+---
+
+## Interactive Sensor Controls
 
 The five most important sensor features can be modified using sliders.
 
-This creates an educational "what-if" experiment:
+This creates an educational **what-if experiment**:
 
 ```text
 Original telemetry
-        ↓
-Change sensor value
-        ↓
-Run model again
-        ↓
-Observe changed RUL prediction
+       ↓
+Modify sensor value
+       ↓
+Run Random Forest again
+       ↓
+Observe new RUL prediction
+```
+
+The purpose is to make the model's response to its inputs visible.
+
+The modified values are artificial exploration inputs; they do not represent a physically validated future engine state.
+
+---
+
+## RUL Gauge
+
+The dashboard displays the predicted RUL using a visual gauge.
+
+The value is expressed in:
+
+```text
+operating cycles
 ```
 
 ---
 
-### 🔢 Predicted RUL
+## Baseline vs Adjusted Prediction
 
-The dashboard displays the current model prediction in:
-
-```text
-cycles
-```
-
----
-
-### 📊 RUL Gauge
-
-A visual gauge shows the predicted remaining useful life.
-
----
-
-### 📈 Change from Baseline
-
-The dashboard also calculates:
+The dashboard compares:
 
 ```text
-Adjusted prediction
--
 Original prediction
+        vs
+Modified prediction
 ```
 
-This shows how much the selected sensor modifications changed the model's output.
+and displays the change:
+
+```text
+Adjusted prediction - Baseline prediction
+```
+
+This makes the effect of the interactive sensor modifications easier to observe.
 
 ---
 
-### 🧠 Feature Importance
+## Feature Importance
 
-The dashboard displays the top model features.
-
----
-
-### 📡 Telemetry Visualization
-
-The five adjustable sensor values are visualized using an interactive chart.
+The dashboard displays the model's most important features.
 
 ---
 
-### 📋 Sensor Information Table
+## Telemetry Visualization
 
-The dashboard shows:
+The dashboard visualizes the adjustable sensor values and their current states.
+
+---
+
+## Sensor Information
+
+The dashboard provides information such as:
 
 * sensor identifier;
 * engineering symbol;
@@ -1098,30 +1235,29 @@ The dashboard shows:
 
 ---
 
-### 📄 Raw Telemetry Snapshot
+## Raw Telemetry
 
-An expandable section shows the underlying selected engine telemetry.
+An expandable section provides access to the underlying telemetry for the selected engine.
 
 ---
 
-### 🎓 Built-in Explanation
+## Built-in Explanation
 
-The dashboard also contains an educational explanation of:
+The dashboard also explains the main project concepts, including:
 
-* the RUL target;
-* the Random Forest;
-* the evaluation process;
-* the sensor interaction demo.
-
-This allows someone unfamiliar with the project to understand what the interface is doing.
+* RUL;
+* Random Forest;
+* model evaluation;
+* sensor interaction;
+* dashboard interpretation.
 
 ---
 
 # 20. Dashboard Status Categories
 
-For educational visualization, AeroSense groups predicted RUL into:
+For visualization purposes, AeroSense groups predicted RUL into three categories:
 
-|    Predicted RUL | Status                 |
+|    Predicted RUL | Dashboard Status       |
 | ---------------: | ---------------------- |
 |  **> 60 cycles** | 🟢 SAFE                |
 | **21–60 cycles** | 🟡 MAINTENANCE WARNING |
@@ -1129,19 +1265,20 @@ For educational visualization, AeroSense groups predicted RUL into:
 
 ### ⚠️ Important
 
-These are:
+These are **project-defined visualization categories**.
 
-> **Demonstration categories created for the dashboard interface.**
+They are:
 
-They are **not certified aviation maintenance limits**.
-
-They must not be interpreted as real aircraft maintenance recommendations.
+* not official aviation thresholds;
+* not certified maintenance limits;
+* not safety classifications;
+* not real aircraft maintenance recommendations.
 
 ---
 
 # 21. Project Architecture
 
-The repository follows a simple separation of responsibilities:
+AeroSense separates the major responsibilities of the system:
 
 ```text
                     ┌──────────────────────────┐
@@ -1150,31 +1287,31 @@ The repository follows a simple separation of responsibilities:
                                  │
                                  ▼
                     ┌──────────────────────────┐
-                    │   data_pipeline.py       │
+                    │     data_pipeline.py     │
                     │                          │
-                    │ • Download dataset       │
-                    │ • Read files             │
-                    │ • Create RUL              │
-                    │ • Prepare test RUL       │
-                    │ • Split by engine        │
+                    │ • Dataset acquisition    │
+                    │ • Data loading            │
+                    │ • RUL construction        │
+                    │ • Test RUL reconstruction│
+                    │ • Engine-wise splitting   │
                     └────────────┬─────────────┘
                                  │
                                  ▼
                     ┌──────────────────────────┐
-                    │     model_train.py       │
+                    │      model_train.py      │
                     │                          │
-                    │ • Select features        │
-                    │ • Train Random Forest    │
-                    │ • Predict                 │
-                    │ • Save model             │
+                    │ • Feature preparation    │
+                    │ • Random Forest training │
+                    │ • Prediction              │
+                    │ • Artifact generation    │
                     └───────┬──────────┬───────┘
                             │          │
               ┌─────────────┘          └─────────────┐
               ▼                                      ▼
 ┌──────────────────────────┐            ┌──────────────────────────┐
-│      evaluate.py         │            │       Reports            │
+│       evaluate.py        │            │         reports          │
 │                          │            │                          │
-│ • RMSE                   │            │ • metrics.json            │
+│ • RMSE                   │            │ • metrics.json           │
 │ • MAE                    │            │ • feature_importance.csv │
 │ • R²                     │            │ • test_predictions.csv   │
 │ • NASA score             │            └──────────────────────────┘
@@ -1182,10 +1319,10 @@ The repository follows a simple separation of responsibilities:
              │
              ▼
 ┌────────────────────────────────────────────────────┐
-│              Streamlit Dashboard                   │
+│               Streamlit Dashboard                  │
 │                                                    │
-│ Engine selection → Telemetry → Prediction →        │
-│ Gauge → Feature importance → Sensor interaction   │
+│ Engine → Telemetry → Prediction → Gauge →         │
+│ Feature Importance → Sensor Interaction            │
 └────────────────────────────────────────────────────┘
 ```
 
@@ -1193,7 +1330,7 @@ The repository follows a simple separation of responsibilities:
 
 # 22. Repository Structure
 
-The GitHub repository is organized as:
+The GitHub repository contains:
 
 ```text
 aerosense-rul/
@@ -1221,23 +1358,23 @@ Generated locally:
 
 ```text
 data/
-├── raw/
-│   ├── train_FD001.txt
-│   ├── test_FD001.txt
-│   ├── RUL_FD001.txt
-│   └── CMAPSSData.zip
-│
+└── raw/
+    ├── train_FD001.txt
+    ├── test_FD001.txt
+    ├── RUL_FD001.txt
+    └── CMAPSSData.zip
+
 artifacts/
 ├── model.joblib
 └── metadata.joblib
-│
+
 reports/
 ├── metrics.json
 ├── feature_importance.csv
 └── test_predictions.csv
 ```
 
-The generated dataset, model files, and reports are intentionally excluded from version control.
+The generated dataset, trained model, and reports are excluded from Git using `.gitignore`.
 
 ---
 
@@ -1245,102 +1382,103 @@ The generated dataset, model files, and reports are intentionally excluded from 
 
 ## `src/data_pipeline.py`
 
-This is the **data layer**.
+The **data-processing layer**.
 
-It is responsible for:
+Responsible for:
 
 * checking whether FD001 exists;
-* automatically downloading the official archive if required;
-* handling the nested archive structure;
-* extracting the three FD001 files;
-* reading the raw telemetry;
+* downloading the dataset when necessary;
+* handling the archive structure;
+* extracting the required FD001 files;
+* loading raw telemetry;
 * assigning column names;
 * calculating training RUL;
 * reconstructing test RUL;
-* splitting engines for validation;
+* preparing engine-wise validation data;
 * identifying informative features.
 
 ---
 
 ## `src/model_train.py`
 
-This is the **training layer**.
+The **model-training layer**.
 
-It:
+Responsible for:
 
-1. loads FD001;
-2. creates the engine-wise training/validation split;
-3. selects model features;
-4. removes near-zero variance features;
-5. creates the Random Forest;
-6. trains the model;
-7. predicts validation RUL;
-8. evaluates final-cycle test RUL;
-9. calculates feature importance;
-10. saves the trained model;
-11. saves metadata;
-12. saves reports.
+1. loading FD001;
+2. creating the engine-wise validation split;
+3. selecting model features;
+4. removing near-zero variance features;
+5. creating the Random Forest;
+6. training the model;
+7. generating validation predictions;
+8. evaluating final-cycle test predictions;
+9. calculating feature importance;
+10. saving the trained model;
+11. saving metadata;
+12. saving reports.
 
 ---
 
 ## `src/evaluate.py`
 
-This is the **evaluation layer**.
+The **evaluation layer**.
 
-It provides:
+Provides:
 
 * RMSE;
 * MAE;
 * R²;
-* asymmetric NASA score;
-* combined metric calculation;
-* metric saving;
-* dashboard health-status logic.
+* NASA asymmetric score;
+* combined metric calculations;
+* metric-report generation;
+* dashboard status logic.
 
 ---
 
 ## `app/streamlit_app.py`
 
-This is the **application layer**.
+The **application layer**.
 
-It:
+Responsible for:
 
-* loads the trained model;
-* loads model metadata;
-* loads FD001 telemetry;
-* allows engine selection;
-* provides sensor sliders;
-* generates predictions;
-* compares baseline and adjusted predictions;
-* displays the RUL gauge;
-* displays feature importance;
-* displays sensor information;
-* displays telemetry snapshots.
+* loading the trained model;
+* loading metadata;
+* loading test telemetry;
+* engine selection;
+* baseline predictions;
+* sensor controls;
+* adjusted predictions;
+* prediction comparison;
+* RUL gauge;
+* feature importance;
+* telemetry visualization;
+* sensor information.
 
 ---
 
 ## `tests/test_data_pipeline.py`
 
-Tests important data-processing behavior, including RUL-related functionality.
+Contains automated tests for important data-processing behavior, including RUL-related functionality.
 
 ---
 
 ## `tests/test_evaluate.py`
 
-Tests the evaluation utilities, including regression metrics and the asymmetric NASA scoring logic.
+Contains automated tests for the evaluation functions and scoring logic.
 
 ---
 
 ## `PROJECT_NOTES.md`
 
-Contains project design decisions and technical notes, including:
+Contains technical implementation and design notes, including important decisions about:
 
-* why Random Forest is used;
-* why scaling is not required;
-* why engine-wise splitting is used;
-* why raw data is not committed;
-* how final-cycle evaluation works;
-* why dashboard thresholds are educational only.
+* model selection;
+* feature scaling;
+* engine-wise validation;
+* dataset handling;
+* evaluation;
+* dashboard thresholds.
 
 ---
 
@@ -1348,7 +1486,7 @@ Contains project design decisions and technical notes, including:
 
 ## Requirements
 
-AeroSense currently uses:
+AeroSense uses:
 
 ```text
 Python
@@ -1361,21 +1499,13 @@ Streamlit
 Pytest
 ```
 
-The repository pins exact dependency versions in:
+Exact dependency versions are pinned in:
 
 ```text
 requirements.txt
 ```
 
-### Python
-
-Use:
-
-```text
-Python 3.11+
-```
-
-The current repository has been successfully tested on:
+The current tested environment uses:
 
 ```text
 Python 3.14
@@ -1383,32 +1513,12 @@ Python 3.14
 
 ---
 
-## Option A — Clone with Git
+## Clone the repository
 
 ```bash
 git clone https://github.com/sushanth0903-CODE/aerosense-rul.git
 cd aerosense-rul
 ```
-
----
-
-## Option B — Download ZIP from GitHub
-
-You can also use:
-
-```text
-GitHub
-   ↓
-Code
-   ↓
-Download ZIP
-   ↓
-Extract
-   ↓
-Open terminal in the extracted folder
-```
-
-No pre-existing NASA dataset is required.
 
 ---
 
@@ -1448,7 +1558,7 @@ python -m pip install -r requirements.txt
 
 # 25. Automatic Dataset Setup
 
-One of the important features of AeroSense is that the project does **not require the user to manually download the NASA dataset before the first run**.
+AeroSense does **not require the NASA dataset to already exist locally**.
 
 When the training pipeline starts, it checks:
 
@@ -1464,18 +1574,23 @@ test_FD001.txt
 RUL_FD001.txt
 ```
 
-If they are not present, AeroSense automatically:
+If they are missing, the pipeline automatically:
 
 ```text
-1. Downloads the official C-MAPSS archive
-2. Opens the downloaded ZIP
-3. Searches for the FD001 files
-4. Handles the nested CMAPSSData.zip structure
+1. Downloads the C-MAPSS archive
+        ↓
+2. Opens the downloaded archive
+        ↓
+3. Searches for the required FD001 files
+        ↓
+4. Handles nested ZIP structures
+        ↓
 5. Extracts the required files
-6. Continues with model training
+        ↓
+6. Continues with training
 ```
 
-The user therefore normally only needs to run:
+Therefore, a normal fresh setup only requires:
 
 ```bash
 py -m src.model_train
@@ -1483,29 +1598,26 @@ py -m src.model_train
 
 on Windows.
 
-### What a first run looks like
+A successful first run will display messages similar to:
 
 ```text
 NASA C-MAPSS archive not found. Downloading it now...
 NASA C-MAPSS FD001 dataset is ready.
-
-=== AeroSense training complete ===
-...
 ```
 
-After the first successful download, the dataset is reused locally.
+After the first successful download, the local dataset is reused.
 
 ---
 
 ## Manual fallback
 
-Automatic retrieval requires internet access.
+Automatic dataset retrieval requires internet access.
 
-If a user's network blocks the dataset host, the FD001 files can still be downloaded from the official NASA dataset page:
+If the dataset host is inaccessible, the required FD001 files can be downloaded from the official NASA dataset page:
 
 https://data.nasa.gov/dataset/cmapss-jet-engine-simulated-data
 
-Then place:
+Place:
 
 ```text
 train_FD001.txt
@@ -1519,13 +1631,13 @@ inside:
 data/raw/
 ```
 
-This is only a fallback; it is **not required in the normal setup**.
+This is only a fallback; manual preparation is not required during normal operation.
 
 ---
 
 # 26. Train the Model
 
-From the project root:
+From the repository root:
 
 ### Windows
 
@@ -1539,12 +1651,12 @@ py -m src.model_train
 python -m src.model_train
 ```
 
-The command performs the full workflow:
+The command performs the complete workflow:
 
 ```text
 Check dataset
       ↓
-Download if needed
+Download if necessary
       ↓
 Load FD001
       ↓
@@ -1552,11 +1664,11 @@ Build RUL targets
       ↓
 Split engines
       ↓
-Select features
+Prepare features
       ↓
 Train Random Forest
       ↓
-Evaluate validation set
+Evaluate validation data
       ↓
 Evaluate final test cycles
       ↓
@@ -1571,9 +1683,7 @@ Save reports
 
 # 27. Run the Dashboard
 
-The dashboard requires the trained model artifacts.
-
-Run:
+After training has completed:
 
 ### Windows
 
@@ -1593,15 +1703,13 @@ Streamlit will provide a local address similar to:
 http://localhost:8501
 ```
 
-Open that address in a browser.
+Open the displayed address in a browser.
 
 ---
 
 # 28. Run the Tests
 
-AeroSense includes automated tests.
-
-Run:
+AeroSense includes automated tests for core functionality.
 
 ### Windows
 
@@ -1615,21 +1723,31 @@ py -m pytest
 python -m pytest
 ```
 
-The current test suite covers core data-processing and evaluation functionality.
-
 Current local result:
 
 ```text
 3 passed
 ```
 
+The tests cover important data-processing and evaluation behavior.
+
 ---
 
 # 29. Generated Files
 
-Running the training pipeline creates:
+Running the training pipeline generates three categories of local data.
 
-## Model artifacts
+## Dataset
+
+```text
+data/raw/
+```
+
+Contains the downloaded FD001 dataset.
+
+---
+
+## Model Artifacts
 
 ```text
 artifacts/model.joblib
@@ -1646,14 +1764,14 @@ RandomForestRegressor
 
 ### `metadata.joblib`
 
-Contains information needed by the dashboard, including:
+Contains information required by the application, including:
 
 * selected features;
-* top sensor features;
-* sensor descriptions;
+* important sensor features;
+* sensor information;
 * feature ranges;
-* training RUL cap;
-* Random Forest parameters.
+* RUL configuration;
+* model parameters.
 
 ---
 
@@ -1667,26 +1785,23 @@ reports/test_predictions.csv
 
 ### `metrics.json`
 
-Contains:
-
-* validation metrics;
-* final-cycle test metrics;
-* engine counts;
-* evaluation information.
+Stores validation and test evaluation information.
 
 ### `feature_importance.csv`
 
-Contains the Random Forest feature-importance values.
+Stores the model's feature-importance values.
 
 ### `test_predictions.csv`
 
-Contains:
+Contains final test predictions and related information such as:
 
-* engine number;
-* final observed cycle;
-* actual RUL;
-* predicted RUL;
-* absolute error.
+```text
+engine number
+final observed cycle
+actual RUL
+predicted RUL
+absolute error
+```
 
 ---
 
@@ -1700,25 +1815,25 @@ The Random Forest uses:
 random_state = 42
 ```
 
-The model configuration is stored in:
+The model configuration is defined in:
 
 ```text
 src/model_train.py
 ```
 
-The repository also records important model metadata in:
+Model metadata is saved to:
 
 ```text
 artifacts/metadata.joblib
 ```
 
-This helps ensure that the dashboard and trained model use the same feature definitions.
+This allows the dashboard to use the same feature definitions and model configuration as the training pipeline.
 
 ---
 
-## Reproducible setup
+## Fresh reproduction
 
-A fresh setup can be reproduced with:
+A complete fresh setup can be performed using:
 
 ```bash
 git clone https://github.com/sushanth0903-CODE/aerosense-rul.git
@@ -1734,240 +1849,105 @@ py -m src.model_train
 py -m streamlit run app/streamlit_app.py
 ```
 
-The NASA dataset is downloaded automatically on the first training run when it is not already present.
+The dataset is downloaded automatically during the first training run when it is not already present.
 
 ---
 
-# 31. Technical Interview Guide
+# 31. Project Screenshots
 
-AeroSense is intentionally designed so that its important decisions can be explained technically.
+The repository can include screenshots of the main application components.
 
-A person presenting the project should be comfortable answering the following questions.
+## AeroSense Dashboard
 
----
+![AeroSense Dashboard](screenshots/dashboard.png)
 
-## What is the problem?
+## Interactive Sensor Controls
 
-Predict the remaining number of operating cycles before simulated engine failure.
+![Sensor Interaction](screenshots/sensor-interaction.png)
 
----
+## Random Forest Feature Importance
 
-## Why is it regression?
+![Feature Importance](screenshots/feature-importance.png)
 
-Because the output is a continuous numerical value:
+## Model Evaluation
 
-```text
-RUL = 43.7 cycles
-```
+![Model Evaluation](screenshots/model-evaluation.png)
 
-rather than a class label.
-
----
-
-## What is the target?
-
-```text
-RUL
-```
-
----
-
-## How is training RUL calculated?
-
-```text
-Maximum engine cycle - Current cycle
-```
-
-with a training cap of:
-
-```text
-125 cycles
-```
-
----
-
-## Why remove engine ID?
-
-Because engine ID identifies an engine but does not physically describe its state.
-
----
-
-## Why split by engine instead of rows?
-
-Because rows from the same engine are strongly related over time.
-
-Row-level splitting can allow the same engine to appear in both training and validation.
-
-Engine-level grouping reduces this leakage risk.
-
----
-
-## Why use `GroupShuffleSplit`?
-
-Because it allows the split to be performed using:
-
-```text
-unit_number
-```
-
-as the grouping variable.
-
----
-
-## Why Random Forest?
-
-Because it:
-
-* handles non-linear relationships;
-* can learn feature interactions;
-* works well with numerical/tabular data;
-* does not require feature scaling;
-* provides feature importance;
-* is easier to explain than many advanced models.
-
----
-
-## Why no normalization?
-
-Because Random Forest decision trees split using feature thresholds and do not rely on distance calculations between samples.
-
----
-
-## Why cap RUL at 125?
-
-To reduce the influence of very large early-life RUL values and focus the model on a more useful bounded target range.
-
----
-
-## Why is the final-cycle test evaluation used?
-
-Because the C-MAPSS test set provides a final RUL value for each test engine corresponding to the final observed test cycle.
-
-Therefore, the project evaluates the latest observation of each test engine.
-
----
-
-## Why use RMSE and MAE together?
-
-Because they provide different views of error:
-
-```text
-MAE
-→ average absolute error
-
-RMSE
-→ penalizes larger errors more heavily
-```
-
----
-
-## Why use the NASA asymmetric score?
-
-Because the evaluation context distinguishes the penalties for under-prediction and over-prediction.
-
----
-
-## What does R² = 0.819 mean?
-
-It indicates that the model explains substantial variation in the evaluated test target relative to a mean-based baseline.
-
-It does **not** mean:
-
-```text
-"The model is 81.9% accurate."
-```
-
-R² is not an accuracy percentage.
-
----
-
-## What does feature importance mean?
-
-It indicates how much the trained Random Forest relied on each feature during its learned tree splits.
-
-It does not automatically prove causation.
-
----
-
-## Why is this not a real aircraft maintenance system?
-
-Because:
-
-```text
-NASA C-MAPSS
-```
-
-contains simulated engine degradation rather than live operational aircraft data.
-
-A real deployment would require much more:
-
-* real-world validation;
-* safety analysis;
-* uncertainty estimation;
-* domain expertise;
-* monitoring;
-* regulatory compliance;
-* testing under real operating conditions.
+These screenshots provide a quick visual overview of the application's interface and outputs.
 
 ---
 
 # 32. Limitations
 
-AeroSense is an educational machine-learning project.
+AeroSense is a machine-learning project based on simulated engine data.
 
-Important limitations include:
+Several limitations should be considered.
 
 ## 1. Simulated dataset
 
-C-MAPSS is a simulated engine-degradation dataset.
+C-MAPSS is a simulated turbofan-engine dataset.
 
-Real aircraft telemetry can contain noise, missing values, changing operating conditions, sensor faults, maintenance events, and many other complications.
+Real aircraft telemetry can contain:
+
+* measurement noise;
+* missing values;
+* sensor faults;
+* maintenance events;
+* changing operating conditions;
+* environmental effects;
+* operational variation.
+
+These factors are not completely represented by the current project.
 
 ---
 
-## 2. Only FD001 is currently supported
+## 2. FD001 only
 
-The project currently focuses on:
+The current implementation focuses on:
 
 ```text
 FD001
 ```
 
-rather than the complete C-MAPSS collection.
+The remaining C-MAPSS subsets are not currently part of the main pipeline.
 
 ---
 
-## 3. One baseline model
+## 3. Single baseline model
 
-The current implementation uses:
+The project currently uses:
 
 ```text
 Random Forest
 ```
 
-A more complete study would compare several approaches.
+A broader experiment could compare several machine-learning approaches.
 
 ---
 
 ## 4. No uncertainty estimation
 
-The current dashboard produces a point prediction:
+The model currently produces a point prediction such as:
 
 ```text
 43.7 cycles
 ```
 
-It does not provide a statistically calibrated prediction interval such as:
-
-```text
-43.7 ± 8.2 cycles
-```
+It does not provide a calibrated prediction interval.
 
 ---
 
-## 5. Dashboard status thresholds are educational
+## 5. Dashboard sensor modifications are hypothetical
 
-The categories:
+The interactive sliders modify sensor values artificially.
+
+They demonstrate model sensitivity but do not simulate a physically validated future engine condition.
+
+---
+
+## 6. Dashboard thresholds are not maintenance rules
+
+The:
 
 ```text
 SAFE
@@ -1975,30 +1955,33 @@ MAINTENANCE WARNING
 CRITICAL
 ```
 
-are demonstration labels.
+categories are interface labels created for demonstration.
 
-They are not real aviation maintenance rules.
+They are not certified aviation maintenance limits.
 
 ---
 
-## 6. Generalization is not guaranteed
+## 7. Real-world deployment is not established
 
-Good performance on C-MAPSS does not guarantee performance on:
+Performance on C-MAPSS does not demonstrate equivalent performance on real aircraft engines.
 
-```text
-real aircraft engines
-different engine families
-different sensor systems
-different operating conditions
-```
+A real deployment would require extensive:
+
+* real-world validation;
+* safety analysis;
+* uncertainty estimation;
+* domain expertise;
+* monitoring;
+* testing;
+* regulatory compliance.
 
 ---
 
 # 33. Future Improvements
 
-AeroSense can be expanded substantially.
+AeroSense can be extended in several directions.
 
-## Dataset expansion
+## Additional C-MAPSS subsets
 
 Support:
 
@@ -2009,13 +1992,13 @@ FD003
 FD004
 ```
 
-This would introduce more varied operating conditions and degradation behavior.
+This would introduce more varied operating conditions and degradation scenarios.
 
 ---
 
-## More machine-learning models
+## Additional machine-learning models
 
-Potential comparisons include:
+Possible comparisons include:
 
 ```text
 Random Forest
@@ -2029,21 +2012,19 @@ LightGBM
 
 ## Hyperparameter optimization
 
-Instead of using a fixed baseline configuration, the project could use:
+The fixed baseline configuration could be investigated using:
 
 ```text
 Grid Search
 Random Search
-Bayesian optimization
+Bayesian Optimization
 ```
-
-to investigate improved model configurations.
 
 ---
 
 ## Feature engineering
 
-Possible time-series features include:
+Potential time-series features include:
 
 ```text
 Rolling mean
@@ -2059,13 +2040,13 @@ Window-based statistics
 
 ## Explainable AI
 
-Potential additions:
+Possible additions include:
 
 ```text
 SHAP
-Permutation importance
-Per-engine explanations
-Local feature attribution
+Permutation Importance
+Local Explanations
+Per-engine Feature Attribution
 ```
 
 ---
@@ -2081,15 +2062,16 @@ Predicted RUL = 43.7
 future versions could estimate:
 
 ```text
-Predicted RUL = 43.7
-Confidence / prediction interval
+Predicted RUL
++
+Prediction Interval
 ```
 
 ---
 
 ## Time-series models
 
-More advanced approaches could use:
+Because engine telemetry is sequential, future versions could investigate:
 
 ```text
 LSTM
@@ -2099,16 +2081,14 @@ Transformers
 Other sequence models
 ```
 
-because engine telemetry is inherently sequential.
-
 ---
 
 ## Engineering improvements
 
-Possible software-engineering additions include:
+The project could also be extended with:
 
-* CI/CD;
-* automated testing;
+* continuous integration;
+* broader automated testing;
 * experiment tracking;
 * model versioning;
 * Docker;
@@ -2120,7 +2100,7 @@ Possible software-engineering additions include:
 
 # 34. References
 
-## NASA
+## NASA C-MAPSS Dataset
 
 **NASA Open Data — C-MAPSS Jet Engine Simulated Data**
 
@@ -2128,7 +2108,7 @@ https://data.nasa.gov/dataset/cmapss-jet-engine-simulated-data
 
 ---
 
-## Original C-MAPSS / PHM Work
+## C-MAPSS / PHM Reference
 
 Saxena, A., Goebel, K., Simon, D., & Eklund, N.
 
@@ -2156,7 +2136,7 @@ https://docs.streamlit.io/
 
 # 35. Project Summary
 
-## AeroSense in one diagram
+AeroSense can be summarized as:
 
 ```text
                     ✈️ AEROSENSE
@@ -2188,7 +2168,7 @@ https://docs.streamlit.io/
                 Model + Metadata
                          │
                          ▼
-              Feature Importance
+                Feature Importance
                          │
                          ▼
                 Streamlit Dashboard
@@ -2197,33 +2177,7 @@ https://docs.streamlit.io/
            Interactive RUL Prediction
 ```
 
----
-
-# 🚀 Final Takeaway
-
-AeroSense demonstrates a complete machine-learning pipeline for predictive maintenance:
-
-```text
-Raw telemetry
-     ↓
-Data processing
-     ↓
-RUL target engineering
-     ↓
-Engine-wise validation
-     ↓
-Random Forest regression
-     ↓
-Model evaluation
-     ↓
-Feature importance
-     ↓
-Saved model artifacts
-     ↓
-Interactive Streamlit application
-```
-
-The current FD001 final-cycle test evaluation is:
+## Current FD001 Test Result
 
 ```text
 RMSE       = 17.660 cycles
@@ -2232,28 +2186,54 @@ R²         = 0.819
 NASA Score = 498.498
 ```
 
-The project is designed so that a fresh user can:
+The complete workflow is:
 
 ```text
-Download the GitHub repository
-        ↓
-Install requirements
-        ↓
-Run model training
-        ↓
+Raw telemetry
+      ↓
+RUL target engineering
+      ↓
+Engine-wise validation
+      ↓
+Feature preparation
+      ↓
+Random Forest regression
+      ↓
+Prediction
+      ↓
+Evaluation
+      ↓
+Feature importance
+      ↓
+Saved artifacts
+      ↓
+Interactive dashboard
+```
+
+A fresh user can reproduce the project by:
+
+```text
+Clone repository
+      ↓
+Install dependencies
+      ↓
+Run training
+      ↓
 Dataset downloads automatically
-        ↓
+      ↓
 Model trains
-        ↓
+      ↓
+Reports are generated
+      ↓
 Launch Streamlit
-        ↓
+      ↓
 Explore RUL predictions
 ```
 
-No pre-existing local dataset is required for the normal first-run workflow.
+No pre-existing local NASA dataset is required for the normal first-run workflow.
 
 ---
 
-## 🧠 AeroSense in one sentence
+## 🧠 AeroSense in One Sentence
 
-> **AeroSense uses NASA C-MAPSS FD001 sensor telemetry and a Random Forest regression model to estimate Remaining Useful Life, evaluate the prediction with multiple metrics, and expose the result through an interactive Streamlit dashboard.**
+> **AeroSense uses NASA C-MAPSS FD001 sensor telemetry and a Random Forest regression model to estimate Remaining Useful Life, evaluate the predictions using multiple metrics, and expose the trained system through an interactive Streamlit dashboard.**
